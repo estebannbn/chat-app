@@ -27,18 +27,26 @@
             height: 100%;
             position: relative;
         }
-        #messages{
+        .messages{
             list-style-type: none;
             margin: 0;
             padding: 0;
         }
-        #messages > li{
+        .messages > li{
             padding: .5rem 1rem;
             margin: .5rem 0 0 .5rem;
-            background-color: #5c0349;
-            border: 1px solid rgb(110, 2, 65);
+            border: 1px solid rgb(39, 39, 39);
             width: fit-content;
             border-radius: 4px;
+        }
+        .messages > .esteban-chat{
+            background-color: rgb(9, 65, 46);
+        }
+        .messages > .maria-chat{
+            background-color: #5c0349;
+        }
+        .messages > .raul-chat{
+            background-color: #693307;
         }
         #form{
             bottom: 0;
@@ -82,7 +90,7 @@
         ]
         const getRandomUser = () => {
             return DEFAULT_USERS[Math.floor(Math.random()*DEFAULT_USERS.length)]
-        } 
+        }
         const socket = io({
             auth:{
                 username: getRandomUser().name,
@@ -90,20 +98,12 @@
                 serverOffset: 0
             }
         })
-
         const form = document.getElementById('form')
         const input = document.getElementById('input')
-        const messages = document.getElementById('messages')
+        const messages = document.querySelector('.messages')
 
-        const getUserName = async () => {
-            const username = localStorage.getItem('username')
-            if(username){
-                console.log(`User existed ${username}`)
-            }
-        }
-
-        socket.on('chat message', (msg,serverOffset) => {
-            const item = `<li>${msg}</li>`
+        socket.on('chat message', (msg,serverOffset,username) => {
+            const item = `<li class="${username}-chat">${msg} ${username}</li>`
             messages.insertAdjacentHTML('beforeend',item)
             socket.auth.serverOffset = serverOffset
         })
@@ -119,7 +119,7 @@
 </head>
 <body>
     <section id="chat">
-        <ul id="messages">
+        <ul class="messages">
 
         </ul>
         <form id="form">

@@ -30,18 +30,23 @@ pool.execute(`CREATE TABLE IF NOT EXISTS users(
     name TEXT,
     password TEXT
 )`)
+
+// tiene ON DELETE CASCADE por la cuestion de los default users
+// podria cambiarlos si quisiera usar una DB preexistente, con usuarios diferentes
 pool.execute(`CREATE TABLE IF NOT EXISTS messages(
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
     content TEXT,
     user_id INTEGER,
-    FOREIGN KEY (user_id)
+    CONSTRAINT FK_user_message FOREIGN KEY (user_id)
         REFERENCES users(id)
-        ON DELETE CASCADE
+        ON UPDATE CASCADE
 )`)
 
-DEFAULT_USERS.forEach( (user,i) => pool.execute(`REPLACE INTO users (id,name,password) VALUES (?,?,?)`,[i,user.name,user.password]) )
-
-
+// Si el constraint en FK_user_message fuese ON DELETE RESTRICT, fallaria la app
+DEFAULT_USERS.forEach( (user,i) => {
+    i=i+1
+    pool.execute(`INSERT IGNORE INTO users (id,name,password) VALUES (?,?,?)`,[i,user.name,user.password])
+} )
 
 
 const PORT = process.env.PORT || 3001
@@ -57,25 +62,27 @@ io.on('connection',async(socket)=>{
     socket.on('chat message',async(msg)=>{
         let result
         const {username} = socket.handshake.auth
-        console.log({username})
-        const userId = await pool.query(`SELECT id FROM users WHERE name=?`,[username])
-        console.log('user id: ' + userId[0])
+        const [rows] = await pool.query(`SELECT * FROM users WHERE name = ?`,[username])
+        const userId = rows[0].id
         try {
             result = await pool.query(`INSERT INTO messages (content,user_id) VALUES (?,?)`,[msg,userId])
-            console.log({result})
         } catch (error) {
             console.log('error in chat message',error)
             return
         }
-        io.emit('chat message',msg)
+        io.emit('chat message',msg,undefined,username)
     })
-    console.log('auth')
-    console.log(socket.handshake.auth)
     if(!socket.recovered){
         try {
-            const result = await pool.query('SELECT id, content FROM messages WHERE id > ?',[socket.handshake.auth.serverOffser ?? 0])
-            const savedMessages = result[0]
-            savedMessages.forEach( row => socket.emit('chat message',row.content,row.id) )
+            const {serverOffset} = socket.handshake.auth
+            const msgResult = await pool.query('SELECT id, content, user_id FROM messages WHERE id > ? ORDER BY id DESC',[serverOffset ?? 0])
+            const savedMessages = msgResult[0]
+            savedMessages.forEach( async(msgRow) => {
+                const [rows] = await pool.query('SELECT name FROM users WHERE id = ?',[msgRow.user_id])
+                const username = rows[0].name
+                console.log('row id ', msgRow.id)
+                socket.emit('chat message',msgRow.content,msgRow.id,username)
+            })
         } catch (error) {
             console.log({error})
             return

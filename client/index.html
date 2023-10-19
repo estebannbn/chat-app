@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat app</title>
+    <style>
+        :root{
+            color-scheme: dark;
+        }
+        *::after, *::before{
+        box-sizing: border-box;
+        }
+        body{
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            display: grid;
+            place-content: center;
+            height: 99vh;
+            grid-template-rows: 1fr;
+        }
+        #chat{
+            border: 4px solid black;
+            border-radius: 4px;
+            overflow: hidden;
+            width: 350px;
+            height: 100%;
+            position: relative;
+        }
+        #messages{
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+        #messages > li{
+            padding: .5rem 1rem;
+            margin: .5rem 0 0 .5rem;
+            background-color: #5c0349;
+            border: 1px solid rgb(110, 2, 65);
+            width: fit-content;
+            border-radius: 4px;
+        }
+        #form{
+            bottom: 0;
+            display: flex;
+            height: 48px;
+            left: 0;
+            padding: 4px;
+            position: absolute;
+            right: 0;
+        }
+        #input{
+            border-radius: 20px;
+            border: 1px solid #eee;
+            flex: 1;
+            margin: 4px;
+            padding: 0 8px;
+        }
+        input:focus{
+            outline: 0;
+        }
+        #form > button{
+            margin: 4px;
+            background-color: #0c043a;
+            border: 0;
+            border-radius: 4px;
+        }
+        #form > button:hover{
+            background-color: #070229;
+            cursor: pointer;
+        }
+        #form > button:active{
+            background-color: #03010e;
+        }
+    </style>
+    <script type="module">
+        import {io} from 'https://cdn.socket.io/4.7.2/socket.io.esm.min.js'
+        const DEFAULT_USERS = [
+            {name:'esteban',password:'hola'},
+            {name:'maria',password:'123'},
+            {name:'raul',password:'pass'}
+        ]
+        const getRandomUser = () => {
+            return DEFAULT_USERS[Math.floor(Math.random()*DEFAULT_USERS.length)]
+        } 
+        const socket = io({
+            auth:{
+                username: getRandomUser().name,
+                password: getRandomUser().password,
+                serverOffset: 0
+            }
+        })
+
+        const form = document.getElementById('form')
+        const input = document.getElementById('input')
+        const messages = document.getElementById('messages')
+
+        const getUserName = async () => {
+            const username = localStorage.getItem('username')
+            if(username){
+                console.log(`User existed ${username}`)
+            }
+        }
+
+        socket.on('chat message', (msg,serverOffset) => {
+            const item = `<li>${msg}</li>`
+            messages.insertAdjacentHTML('beforeend',item)
+            socket.auth.serverOffset = serverOffset
+        })
+
+        form.addEventListener('submit', e => {
+            e.preventDefault()
+            if(input.value){
+            socket.emit('chat message',input.value)
+            input.value = ''
+        }
+        })
+    </script>
+</head>
+<body>
+    <section id="chat">
+        <ul id="messages">
+
+        </ul>
+        <form id="form">
+            <input type="text" name="input" id="input" placeholder="type a message" autocomplete="off">
+            <button type="submit">enviar</button>
+        </form>
+    </section>
+</body>
+</html>

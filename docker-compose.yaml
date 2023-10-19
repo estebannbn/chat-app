@@ -1,0 +1,8 @@
+version: '3.8'
+services:
+  chat-db:
+    image: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+    ports:
+      - 3306:3306

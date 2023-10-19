@@ -82,7 +82,7 @@
         ]
         const getRandomUser = () => {
             return DEFAULT_USERS[Math.floor(Math.random()*DEFAULT_USERS.length)]
-        } 
+        }
         const socket = io({
             auth:{
                 username: getRandomUser().name,
@@ -90,17 +90,9 @@
                 serverOffset: 0
             }
         })
-
         const form = document.getElementById('form')
         const input = document.getElementById('input')
         const messages = document.getElementById('messages')
-
-        const getUserName = async () => {
-            const username = localStorage.getItem('username')
-            if(username){
-                console.log(`User existed ${username}`)
-            }
-        }
 
         socket.on('chat message', (msg,serverOffset) => {
             const item = `<li>${msg}</li>`

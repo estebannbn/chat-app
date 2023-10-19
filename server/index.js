@@ -39,17 +39,14 @@ pool.execute(`CREATE TABLE IF NOT EXISTS messages(
     user_id INTEGER,
     CONSTRAINT FK_user_message FOREIGN KEY (user_id)
         REFERENCES users(id)
-        ON DELETE CASCADE
         ON UPDATE CASCADE
 )`)
 
 // Si el constraint en FK_user_message fuese ON DELETE RESTRICT, fallaria la app
 DEFAULT_USERS.forEach( (user,i) => {
     i=i+1
-    pool.execute(`REPLACE INTO users (id,name,password) VALUES (?,?,?)`,[i,user.name,user.password])
+    pool.execute(`INSERT IGNORE INTO users (id,name,password) VALUES (?,?,?)`,[i,user.name,user.password])
 } )
-
-
 
 
 const PORT = process.env.PORT || 3001
@@ -73,15 +70,19 @@ io.on('connection',async(socket)=>{
             console.log('error in chat message',error)
             return
         }
-        io.emit('chat message',msg,username)
+        io.emit('chat message',msg,undefined,username)
     })
-    console.log('auth')
-    console.log(socket.handshake.auth)
     if(!socket.recovered){
         try {
-            const result = await pool.query('SELECT id, content, user_id FROM messages WHERE id > ?',[socket.handshake.auth.serverOffset ?? 0])
-            const savedMessages = result[0]
-            savedMessages.forEach( row => socket.emit('chat message',row.content,row.id) )
+            const {serverOffset} = socket.handshake.auth
+            const msgResult = await pool.query('SELECT id, content, user_id FROM messages WHERE id > ? ORDER BY id DESC',[serverOffset ?? 0])
+            const savedMessages = msgResult[0]
+            savedMessages.forEach( async(msgRow) => {
+                const [rows] = await pool.query('SELECT name FROM users WHERE id = ?',[msgRow.user_id])
+                const username = rows[0].name
+                console.log('row id ', msgRow.id)
+                socket.emit('chat message',msgRow.content,msgRow.id,username)
+            })
         } catch (error) {
             console.log({error})
             return
